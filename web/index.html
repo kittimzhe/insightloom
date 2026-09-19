@@ -231,6 +231,20 @@
   </div>
 </div>
 
+<!-- 笔记全文阅读弹层(图谱节点 → 读全文) -->
+<div id="note-modal" class="hidden fixed inset-0 z-50 items-center justify-center p-4" style="background:rgba(15,23,42,.55);backdrop-filter:blur(2px)">
+  <div class="w-full max-w-2xl max-h-[82vh] flex flex-col rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-700">
+    <div class="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-200 dark:border-slate-700">
+      <div class="min-w-0">
+        <h3 id="note-modal-title" class="text-sm font-semibold truncate text-slate-900 dark:text-slate-100"></h3>
+        <p id="note-modal-meta" class="text-[11px] text-slate-400 truncate"></p>
+      </div>
+      <button onclick="closeNote()" title="关闭 (Esc)"
+              class="shrink-0 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 transition">✕</button>
+    </div>
+    <div id="note-modal-body" class="px-5 py-4 overflow-y-auto text-sm leading-relaxed text-slate-700 dark:text-slate-300"></div>
+  </div>
+</div>
 <script src="app.js"></script>
 </body>
 </html>

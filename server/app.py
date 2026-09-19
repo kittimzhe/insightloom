@@ -179,6 +179,25 @@ def reindex():
     return {"ok": True, **retrieval.reindex_vault()}
 
 
+@app.get("/api/note/{filename}")
+def get_note(filename: str):
+    """读取一篇 vault 笔记全文(图谱「读全文」按钮用)。
+
+    filename 只取 basename,防目录穿越;返回正文与其中的 [[双链]] 目标。
+    """
+    import re
+
+    safe = Path(filename).name
+    if not safe.endswith(".md"):
+        raise HTTPException(status_code=404, detail="not a note")
+    path = VAULT_DIR / safe
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="note not found")
+    text = path.read_text(encoding="utf-8")
+    links = sorted({t.strip() for t in re.findall(r"\[\[([^\]|#]+)", text) if t.strip()})
+    return {"file": safe, "title": safe[:-3], "content": text, "links": links}
+
+
 @app.get("/api/graph")
 def graph():
     """知识图谱:vault 全量笔记为节点,[[wiki-link]] 为边;未命中的链接单独返回。

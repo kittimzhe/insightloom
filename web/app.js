@@ -492,7 +492,53 @@ function renderGraphInfo(){
     <p class="text-xs text-slate-500">${esc(n.file)} · ${n.degree} 条连接</p>
     <div class="flex flex-wrap gap-1.5 pt-1">
       ${neighbors.map(m => `<button onclick="focusNode(this.dataset.id)" data-id="${esc(m.id)}" class="text-xs px-2 py-1 rounded-lg border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-700 dark:border-sky-800 dark:bg-sky-900/30 dark:text-sky-300 transition">${esc(m.title)}</button>`).join('') || '<span class="text-xs text-slate-400">暂无邻居(孤岛笔记)</span>'}
-    </div>`;
+    </div>
+    <button onclick="openNote(this.dataset.file)" data-file="${esc(n.file)}"
+            class="mt-2 text-xs px-3 py-1.5 rounded-lg bg-amber-400/90 hover:bg-amber-300 text-amber-950 font-semibold transition">📖 读全文</button>`;
+}
+
+/* ============ 笔记全文阅读(图谱 → 弹层) ============ */
+async function openNote(file){
+  const modal = $('note-modal');
+  $('note-modal-title').textContent = file.replace(/\.md$/, '');
+  $('note-modal-meta').textContent = `${file} · vault`;
+  $('note-modal-body').innerHTML = '<p class="text-xs text-slate-400">加载中…</p>';
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  try {
+    const r = await fetch(`/api/note/${encodeURIComponent(file)}`);
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    $('note-modal-body').innerHTML = mdToHtml(d.content);
+  } catch {
+    $('note-modal-body').innerHTML = '<p class="text-xs text-red-400">读取失败,笔记还在吗?</p>';
+  }
+}
+function closeNote(){ const m = $('note-modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+function noteJump(id){ closeNote(); focusNode(id); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNote(); });
+
+/* 极简 Markdown 渲染:标题/列表/引用/加粗/行内码/[[双链]]/外链 —— 覆盖 vault 笔记的实际语法 */
+function mdToHtml(md){
+  const chip = 'text-xs px-1.5 py-0.5 rounded-md border border-amber-300/60 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-300 transition';
+  const codeCls = 'px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[12px] font-mono';
+  const inline = s => s
+    .replace(/\[\[([^\]]+)\]\]/g, (_, x) => `<button onclick="noteJump(this.dataset.id)" data-id="${esc(x)}" class="${chip}">[[${esc(x)}]]</button>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, `<code class="${codeCls}">$1</code>`)
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="text-sky-600 dark:text-sky-400 underline">$1</a>');
+  const out = []; let list = false;
+  for (const raw of md.split('\n')) {
+    const line = esc(raw.trimEnd());
+    const h = line.match(/^(#{1,3})\s+(.*)$/);
+    if (h) { if (list) { out.push('</ul>'); list = false; } const lv = h[1].length + 1; out.push(`<h${lv} class="font-semibold mt-3 mb-1 text-slate-900 dark:text-slate-100">${inline(h[2])}</h${lv}>`); continue; }
+    if (/^[-*]\s+/.test(line)) { if (!list) { out.push('<ul class="list-disc pl-5 my-1 space-y-0.5">'); list = true; } out.push(`<li>${inline(line.replace(/^[-*]\s+/, ''))}</li>`); continue; }
+    if (list) { out.push('</ul>'); list = false; }
+    if (line.startsWith('&gt; ')) { out.push(`<blockquote class="border-l-2 border-amber-300 pl-3 my-2 text-slate-500 dark:text-slate-400">${inline(line.slice(5))}</blockquote>`); continue; }
+    if (!line.trim()) { out.push(''); continue; }
+    out.push(`<p class="my-1.5">${inline(line)}</p>`);
+  }
+  if (list) out.push('</ul>');
+  return out.join('\n');
 }
 
 function focusNode(id){ const n = G.byId[id]; if (n) { G.sel = n; renderGraphInfo(); G.alpha = Math.max(G.alpha, 0.2); } }
