@@ -18,6 +18,8 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -35,9 +37,18 @@ from . import gardener
 from . import llm
 from . import pipeline
 from . import retrieval
+from . import scheduler
 from . import store
 
-app = FastAPI(title="InsightLoom API", version="0.1.0")
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """启动定时园丁(默认每 24h 巡库;INSIGHTLOOM_GARDEN_INTERVAL_HOURS 可调,0=关)。"""
+    scheduler.start()
+    yield
+
+
+app = FastAPI(title="InsightLoom API", version="0.1.0", lifespan=_lifespan)
 
 # 书签采集脚本(bookmarklet)在任意网页上向本机服务投递,需要跨域放行。
 # 自托管单人工具,默认仅监听本机;如暴露公网请自行加反代鉴权。
